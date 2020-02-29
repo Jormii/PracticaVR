@@ -23,9 +23,21 @@
 #include "shader.h"
 #include "opengl_tools.h"
 
+enum Stereoscopy {
+	No,
+	Toe_In,
+	Off_Axis
+};
+
+enum Eye {
+	Left,
+	Right
+};
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-void render(ToolsC *tools, Shader shader, glm::vec3 &eye);
+void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye);
+glm::mat4 calculate_off_axis_frustrum(Eye eye);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -55,6 +67,7 @@ TimerAvrg Fps;
 glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f));
 glm::vec3 current_pos = glm::vec3(1.0f);
 
+Stereoscopy steroscopy = Stereoscopy::Toe_In;
 
 int main(int argc, char **argv)
 {
@@ -174,18 +187,17 @@ int main(int argc, char **argv)
 
 		// render
 		float EyeSeparation = 0.065f;
+		glm::vec3 eye_center(0.0f, 1.0f, -0.5f);
 
 		glColorMask(true, false, false, false);
-		glm::vec3 left_eye = glm::vec3(0.0f, 1.0f, -0.5f);
-		left_eye.x -= EyeSeparation;
-		render(tools, ourShader, left_eye);
+		glm::vec3 left_eye = eye_center - EyeSeparation;
+		render(tools, ourShader, eye_center, Eye::Left);
 
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		glColorMask(false, true, true, false);
-		glm::vec3 right_eye = glm::vec3(0.0f, 1.0f, -0.5f);
-		left_eye.x += EyeSeparation;
-		render(tools, ourShader, right_eye);
+		glm::vec3 right_eye = eye_center + EyeSeparation;
+		render(tools, ourShader, eye_center, Eye::Right);
 
 		glColorMask(true, true, true, true);
 		ourShader2D.use();
@@ -240,7 +252,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void render(ToolsC *tools, Shader shader, glm::vec3 &eye) {
+void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 	// render
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
@@ -257,7 +269,8 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye) {
 	// create transformations
 	glm::mat4 current_view = glm::mat4(1.0f);
 	glm::mat4 projection = glm::mat4(1.0f);
-	projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	// projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	projection = calculate_off_axis_frustrum(eye);
 
 	// pass transformation matrices to the shader
 	shader.setMat4("projection", projection);
@@ -273,11 +286,11 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye) {
 	{
 		glm::vec3 origin(0.0f, 0.0f, 0.0f);
 		glm::vec3 up(0.0f, 0.0f, -1.0f);
-		glm::mat4 m_view = glm::lookAt(eye, origin, up);
+		glm::mat4 m_view = glm::lookAt(eye_position, origin, up);
 
 		std::cout << "No marker detected\n";
 		shader.setMat4("view", m_view);
-		shader.setVec3("viewPos", eye);
+		shader.setVec3("viewPos", eye_position);
 	}
 
 	shader.setVec3("light.direction", -1.0f, .0f, -1.0f);
@@ -316,4 +329,34 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye) {
 	// Prepare transformations
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, tools->m_textures[1]);
+}
+
+glm::mat4 calculate_off_axis_frustrum(Eye eye) {
+	float eye_separation = 0.065f;
+	float convergence = 1.0f;
+	float aspect_ratio = 1.3333f;
+	float fov = 45.0f;
+	float near_clip_plane = 0.01f;
+	float far_clip_plane = 10.0f;
+
+	float top, bottom, left, right;
+	float a, b, c;
+
+	top = near_clip_plane * tan(fov / 2);
+	bottom = -top;
+
+	a = aspect_ratio * tan(fov / 2) * convergence;
+	b = a - eye_separation / 2;
+	c = a + eye_separation / 2;
+	if (eye == Eye::Left) {
+		left = -b * near_clip_plane / convergence;
+		right = c * near_clip_plane / convergence;
+	}
+	else {
+		left = -c * near_clip_plane / convergence;
+		right = b * near_clip_plane / convergence;
+	}
+
+
+	return glm::frustum(left, right, bottom, top, near_clip_plane, far_clip_plane);
 }
