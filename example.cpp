@@ -30,6 +30,7 @@ enum Stereoscopy {
 };
 
 enum Eye {
+	Center,
 	Left,
 	Right
 };
@@ -67,7 +68,8 @@ TimerAvrg Fps;
 glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f));
 glm::vec3 current_pos = glm::vec3(1.0f);
 
-Stereoscopy steroscopy = Stereoscopy::Toe_In;
+// Stereoscopy
+Stereoscopy steroscopy = Stereoscopy::Off_Axis;
 
 int main(int argc, char **argv)
 {
@@ -186,20 +188,26 @@ int main(int argc, char **argv)
 		processInput(window);
 
 		// render
-		float EyeSeparation = 0.065f;
-		glm::vec3 eye_center(0.0f, 1.0f, -0.5f);
+		glm::vec3 eye_center(0.0f, 1.0f, -0.25f);
 
-		glColorMask(true, false, false, false);
-		glm::vec3 left_eye = eye_center - EyeSeparation;
-		render(tools, ourShader, eye_center, Eye::Left);
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
+		if (steroscopy == Stereoscopy::No) {
+			render(tools, ourShader, eye_center, Eye::Center);
+		}
+		else {
+			glColorMask(true, false, false, false);
 
-		glClear(GL_DEPTH_BUFFER_BIT);
+			render(tools, ourShader, eye_center, Eye::Left);
 
-		glColorMask(false, true, true, false);
-		glm::vec3 right_eye = eye_center + EyeSeparation;
-		render(tools, ourShader, eye_center, Eye::Right);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
-		glColorMask(true, true, true, true);
+			glColorMask(false, true, true, false);
+			render(tools, ourShader, eye_center, Eye::Right);
+
+			glColorMask(true, true, true, true);
+		}
+
 		ourShader2D.use();
 		float screen_width = 2.0f;
 		glm::mat4 projection2D = glm::ortho(0.0f, (float)SCR_WIDTH, 0.0f, (float)SCR_HEIGHT, -1.0f, 1.0f);
@@ -253,10 +261,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 }
 
 void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
-	// render
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
-
 	 // bind textures on corresponding texture units
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tools->m_textures[0]);
@@ -268,9 +272,15 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 
 	// create transformations
 	glm::mat4 current_view = glm::mat4(1.0f);
-	glm::mat4 projection = glm::mat4(1.0f);
-	// projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-	projection = calculate_off_axis_frustrum(eye);
+	glm::mat4 projection;
+
+	float EyeSeparation = 0.065f;
+	if (steroscopy == Stereoscopy::Off_Axis) {
+		projection = calculate_off_axis_frustrum(eye);
+	}
+	else {
+		projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	}
 
 	// pass transformation matrices to the shader
 	shader.setMat4("projection", projection);
@@ -287,6 +297,11 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 		glm::vec3 origin(0.0f, 0.0f, 0.0f);
 		glm::vec3 up(0.0f, 0.0f, -1.0f);
 		glm::mat4 m_view = glm::lookAt(eye_position, origin, up);
+
+		if (steroscopy == Stereoscopy::Toe_In) {
+			int sign = 1 ? -1 : Eye::Left;
+			eye_position += sign * EyeSeparation / 2;
+		}
 
 		std::cout << "No marker detected\n";
 		shader.setMat4("view", m_view);
