@@ -69,7 +69,7 @@ glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f))
 glm::vec3 current_pos = glm::vec3(1.0f);
 
 // Stereoscopy
-Stereoscopy steroscopy = Stereoscopy::Off_Axis;
+Stereoscopy steroscopy = Stereoscopy::Toe_In;
 
 int main(int argc, char **argv)
 {
@@ -300,7 +300,8 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 
 		if (steroscopy == Stereoscopy::Toe_In) {
 			int sign = 1 ? -1 : Eye::Left;
-			eye_position += sign * EyeSeparation / 2;
+			m_view[0][3] += sign * EyeSeparation / 2;
+			eye_position[0] = m_view[0][3];
 		}
 
 		std::cout << "No marker detected\n";
