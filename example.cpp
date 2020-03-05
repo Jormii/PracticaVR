@@ -69,7 +69,7 @@ glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f))
 glm::vec3 current_pos = glm::vec3(1.0f);
 
 // Stereoscopy
-Stereoscopy steroscopy = Stereoscopy::Off_Axis;
+Stereoscopy steroscopy = Stereoscopy::No;
 
 int main(int argc, char **argv)
 {
@@ -250,6 +250,16 @@ void processInput(GLFWwindow *window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		steroscopy = Stereoscopy::No;
+	}
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		steroscopy = Stereoscopy::Toe_In;
+	}
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+		steroscopy = Stereoscopy::Off_Axis;
+	}
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -261,7 +271,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 }
 
 void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
-	 // bind textures on corresponding texture units
+	// bind textures on corresponding texture units
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tools->m_textures[0]);
 	glActiveTexture(GL_TEXTURE1);
@@ -294,14 +304,14 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 	}
 	else
 	{
+		if (steroscopy == Stereoscopy::Toe_In) {
+			int sign = 1 ? -1 : Eye::Right;
+			eye_position.x += sign * EyeSeparation / 2;
+		}
+
 		glm::vec3 origin(0.0f, 0.0f, 0.0f);
 		glm::vec3 up(0.0f, 0.0f, -1.0f);
 		glm::mat4 m_view = glm::lookAt(eye_position, origin, up);
-
-		if (steroscopy == Stereoscopy::Toe_In) {
-			int sign = 1 ? -1 : Eye::Left;
-			eye_position += sign * EyeSeparation / 2;
-		}
 
 		std::cout << "No marker detected\n";
 		shader.setMat4("view", m_view);
