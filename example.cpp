@@ -68,6 +68,7 @@ TimerAvrg Fps;
 glm::vec3 current_pos = glm::vec3(0.0f, 0.0f, -0.5f);
 glm::mat4 m_view = glm::translate(glm::mat4(1.0f), current_pos);
 glm::vec4 orientation = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+glm::mat4 m_view_segundo_cubo = glm::translate(glm::mat4(1.0f), glm::vec3(0.2f, 0.0f, 0.0f));
 
 // Stereoscopy
 Stereoscopy steroscopy = Stereoscopy::No;
@@ -168,7 +169,7 @@ int main(int argc, char **argv)
 			std::cout << "Parameters OK\n";
 
 		// TAREA 1: detectar marcadores con MDetector.detect (ver librería Aruco)
-		TheMarkers = MDetector.detect(frameCopy, TheCameraParameters, TheMarkerSize);
+		TheMarkers = MDetector.detect(frameCopy, TheCameraParameters, TheMarkerSize, true);
 
 		// TAREA 1: para cada marcador, dibujar la imagen frameCopy
 		//	- el marcador en la imagen usando método draw() de aruco::Marker
@@ -304,10 +305,20 @@ void render(ToolsC *tools, Shader shader, Eye eye) {
 		float rot_z = TheMarkers[0].Rvec.at<float>(1, 0);
 
 		rotation_matrix = glm::rotate(rotation_matrix, rot_z, glm::vec3(0.0f, 0.0f, 1.0f));
-		glm::vec4 normal = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+		glm::vec4 normal = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
 		orientation = glm::vec4(rotation_matrix * normal);
 
 		// TAREA 4
+		if (TheMarkers.size() > 1) {
+			// TODO: Poner el indice 1
+			float pos_x_other_marker = TheMarkers[1].Tvec.at<float>(0, 0);
+			float pos_y_other_marker = TheMarkers[1].Tvec.at<float>(1, 0);
+			float pos_z_other_marker = TheMarkers[1].Tvec.at<float>(2, 0);
+
+			m_view_segundo_cubo[3][0] = pos_x_other_marker;
+			m_view_segundo_cubo[3][1] = pos_y_other_marker;
+			m_view_segundo_cubo[3][2] = -pos_z_other_marker;
+		}
 	}
 	else
 	{
@@ -349,8 +360,13 @@ void render(ToolsC *tools, Shader shader, Eye eye) {
 	// draws
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 
+	// Pintar segundo cubo
+	shader.setMat4("model", m_view_segundo_cubo);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+
 	glBindVertexArray(0);
 
+	shader.setMat4("model", model);
 	shader.setInt("material.specular", 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tools->m_textures[2]);
