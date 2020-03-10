@@ -65,8 +65,8 @@ struct   TimerAvrg { std::vector<double> times; size_t curr = 0, n; std::chrono:
 TimerAvrg Fps;
 
 // camera viewpoint
-glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f));
-glm::vec3 current_pos = glm::vec3(1.0f);
+glm::vec3 current_pos = glm::vec3(0.0f, 0.0f, -0.5f);
+glm::mat4 m_view = glm::translate(glm::mat4(1.0f), current_pos);
 glm::vec4 orientation = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
 
 // Stereoscopy
@@ -315,17 +315,12 @@ void render(ToolsC *tools, Shader shader, Eye eye) {
 	}
 
 	glm::vec3 camera_target = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::vec3 camera_pos = glm::vec3(current_pos);
+	glm::vec3 camera_pos = current_pos;
 
 	float eye_separation = 0.065f;
 	if (steroscopy != Stereoscopy::No) {
-		int sign = eye == Eye::Right ? 1 : -1;
+		int sign = (eye == Eye::Right) ? 1 : -1;
 		camera_pos.x = current_pos.x + sign * eye_separation / 2;
-
-		std::cerr << "Estereoscopía: " << steroscopy << std::endl;
-		std::cerr << "Ojo: " << eye << std::endl;
-		std::cerr << "Current_pos: " << glm::to_string(current_pos) << std::endl;
-		std::cerr << "Camera_pos: " << glm::to_string(camera_pos) << std::endl;
 	}
 
 	m_view = glm::lookAt(camera_pos, camera_target, glm::vec3(orientation.x, orientation.y, orientation.z));
