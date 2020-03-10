@@ -37,7 +37,7 @@ enum Eye {
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye);
+void render(ToolsC *tools, Shader shader, Eye eye);
 glm::mat4 calculate_off_axis_frustrum(Eye eye);
 
 // settings
@@ -65,8 +65,9 @@ struct   TimerAvrg { std::vector<double> times; size_t curr = 0, n; std::chrono:
 TimerAvrg Fps;
 
 // camera viewpoint
-glm::mat4 m_view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f));
-glm::vec3 current_pos = glm::vec3(1.0f);
+glm::vec3 current_pos = glm::vec3(0.0f, 0.0f, -0.5f);
+glm::mat4 m_view = glm::translate(glm::mat4(1.0f), current_pos);
+glm::vec4 orientation = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
 
 // Stereoscopy
 Stereoscopy steroscopy = Stereoscopy::No;
@@ -174,9 +175,8 @@ int main(int argc, char **argv)
 		//	- el eje local de coordenadas del marcador con aruco::CvDrawingUtils::draw3dAxis()
 		for (unsigned int i = 0; i < TheMarkers.size(); i++)
 		{
-			aruco::Marker &marker = TheMarkers[i];
-			marker.draw(frameCopy);
-			aruco::CvDrawingUtils::draw3dAxis(frameCopy, marker, TheCameraParameters, 5);
+			aruco::CvDrawingUtils::draw3dAxis(frameCopy, TheMarkers[i], TheCameraParameters, 5);
+			TheMarkers[i].draw(frameCopy);
 		}
 
 		// copies input image to m_textures[1]
@@ -188,22 +188,20 @@ int main(int argc, char **argv)
 		processInput(window);
 
 		// render
-		glm::vec3 eye_center(0.0f, 1.0f, -0.25f);
-
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
 		if (steroscopy == Stereoscopy::No) {
-			render(tools, ourShader, eye_center, Eye::Center);
+			render(tools, ourShader, Eye::Center);
 		}
 		else {
 			glColorMask(true, false, false, false);
 
-			render(tools, ourShader, eye_center, Eye::Left);
+			render(tools, ourShader, Eye::Left);
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 
 			glColorMask(false, true, true, false);
-			render(tools, ourShader, eye_center, Eye::Right);
+			render(tools, ourShader, Eye::Right);
 
 			glColorMask(true, true, true, true);
 		}
@@ -270,7 +268,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
+void render(ToolsC *tools, Shader shader, Eye eye) {
 	// bind textures on corresponding texture units
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tools->m_textures[0]);
@@ -284,40 +282,51 @@ void render(ToolsC *tools, Shader shader, glm::vec3 &eye_position, Eye eye) {
 	glm::mat4 current_view = glm::mat4(1.0f);
 	glm::mat4 projection;
 
-	float EyeSeparation = 0.065f;
 	if (steroscopy == Stereoscopy::Off_Axis) {
 		projection = calculate_off_axis_frustrum(eye);
 	}
 	else {
 		projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 	}
-
 	// pass transformation matrices to the shader
 	shader.setMat4("projection", projection);
+
 	if (TheMarkers.size() > 0)
 	{
 		// TAREA 2
+		float pos_x = TheMarkers[0].Tvec.at<float>(0, 0);
+		float pos_y = TheMarkers[0].Tvec.at<float>(1, 0);
+		float pos_z = TheMarkers[0].Tvec.at<float>(2, 0);
+		current_pos = glm::vec3(pos_x, pos_y, -pos_z);
 
 		// TAREA 3
+		glm::mat4 rotation_matrix = glm::mat4(1.0f);
+		float rot_z = TheMarkers[0].Rvec.at<float>(1, 0);
+
+		rotation_matrix = glm::rotate(rotation_matrix, rot_z, glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::vec4 normal = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+		orientation = glm::vec4(rotation_matrix * normal);
 
 		// TAREA 4
 	}
 	else
 	{
-		if (steroscopy == Stereoscopy::Toe_In) {
-			int sign = 1 ? -1 : Eye::Right;
-			eye_position.x += sign * EyeSeparation / 2;
-		}
-
-		glm::vec3 origin(0.0f, 0.0f, 0.0f);
-		glm::vec3 up(0.0f, 0.0f, -1.0f);
-		glm::mat4 m_view = glm::lookAt(eye_position, origin, up);
-
 		std::cout << "No marker detected\n";
-		shader.setMat4("view", m_view);
-		shader.setVec3("viewPos", eye_position);
 	}
 
+	glm::vec3 camera_target = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 camera_pos = current_pos;
+
+	float eye_separation = 0.065f;
+	if (steroscopy != Stereoscopy::No) {
+		int sign = (eye == Eye::Right) ? 1 : -1;
+		camera_pos.x = current_pos.x + sign * eye_separation / 2;
+	}
+
+	m_view = glm::lookAt(camera_pos, camera_target, glm::vec3(orientation.x, orientation.y, orientation.z));
+
+	shader.setMat4("view", m_view);
+	shader.setVec3("viewPos", camera_pos);
 	shader.setVec3("light.direction", -1.0f, .0f, -1.0f);
 
 	// light properties
