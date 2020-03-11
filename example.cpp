@@ -67,7 +67,7 @@ TimerAvrg Fps;
 // camera viewpoint
 glm::vec3 current_pos = glm::vec3(0.0f, 0.0f, -0.5f);
 glm::mat4 m_view = glm::translate(glm::mat4(1.0f), current_pos);
-glm::vec4 orientation = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+glm::vec4 orientation = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
 glm::mat4 m_view_segundo_cubo = glm::translate(glm::mat4(1.0f), glm::vec3(0.2f, 0.0f, 0.0f));
 
 // Stereoscopy
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "RV â€“ Practica tracking", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "RV – Practica tracking", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -162,17 +162,17 @@ int main(int argc, char **argv)
 		// creates a copy of the grabbed frame
 		frame.copyTo(frameCopy);
 
-		// TamaÃ±o en cm del marcador
+		// Tamaño en cm del marcador
 		float TheMarkerSize = 0.1;
 
 		if (TheCameraParameters.isValid())
 			std::cout << "Parameters OK\n";
 
-		// TAREA 1: detectar marcadores con MDetector.detect (ver librerÃ­a Aruco)
+		// TAREA 1: detectar marcadores con MDetector.detect (ver librería Aruco)
 		TheMarkers = MDetector.detect(frameCopy, TheCameraParameters, TheMarkerSize, true);
 
 		// TAREA 1: para cada marcador, dibujar la imagen frameCopy
-		//	- el marcador en la imagen usando mÃ©todo draw() de aruco::Marker
+		//	- el marcador en la imagen usando método draw() de aruco::Marker
 		//	- el eje local de coordenadas del marcador con aruco::CvDrawingUtils::draw3dAxis()
 		for (unsigned int i = 0; i < TheMarkers.size(); i++)
 		{
@@ -305,7 +305,7 @@ void render(ToolsC *tools, Shader shader, Eye eye) {
 		float rot_z = TheMarkers[0].Rvec.at<float>(1, 0);
 
 		rotation_matrix = glm::rotate(rotation_matrix, rot_z, glm::vec3(0.0f, 0.0f, 1.0f));
-		glm::vec4 normal = glm::vec4(0.0f, -1.0f, 0.0f, 1.0f);
+		glm::vec4 normal = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
 		orientation = glm::vec4(rotation_matrix * normal);
 
 		// TAREA 4
